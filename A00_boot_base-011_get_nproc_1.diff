@@ -1,0 +1,121 @@
+diff -x '*.a' -x '*.o' -ru A00_boot_base/include/efi.h 011_get_nproc_1/include/efi.h
+--- A00_boot_base/include/efi.h	2019-06-09 10:53:14.460147911 +0900
++++ 011_get_nproc_1/include/efi.h	2019-06-09 18:40:28.004646526 +0900
+@@ -492,6 +492,57 @@
+ 		const struct EFI_DEVICE_PATH_PROTOCOL *DeviceNode);
+ };
+ 
++struct EFI_CPU_PHYSICAL_LOCATION {
++	unsigned int Package;
++	unsigned int Core;
++	unsigned int Thread;
++};
++
++struct EFI_PROCESSOR_INFORMATION {
++	unsigned long long ProcessorId;
++	unsigned int StatusFlag;
++	struct EFI_CPU_PHYSICAL_LOCATION Location;
++};
++
++struct EFI_MP_SERVICES_PROTOCOL {
++	unsigned long long (*GetNumberOfProcessors)(
++		struct EFI_MP_SERVICES_PROTOCOL *This,
++		unsigned long long *NumberOfProcessors,
++		unsigned long long *NumberOfEnabledProcessors);
++	unsigned long long (*GetProcessorInfo)(
++		struct EFI_MP_SERVICES_PROTOCOL *This,
++		unsigned long long ProcessorNumber,
++		struct EFI_PROCESSOR_INFORMATION *ProcessorInfoBuffer);
++	unsigned long long (*StartupAllAPs)(
++		struct EFI_MP_SERVICES_PROTOCOL *This,
++		void (*Procedure)(void *ProcedureArgument),
++		unsigned char SingleThread,
++		void *WaitEvent,
++		unsigned long long TimeoutInMicroSeconds,
++		void *ProcedureArgument,
++		unsigned long long **FailedCpuList);
++	unsigned long long (*StartupThisAP)(
++		struct EFI_MP_SERVICES_PROTOCOL *This,
++		void (*Procedure)(void *ProcedureArgument),
++		unsigned long long ProcessorNumber,
++		void *WaitEvent,
++		unsigned long long TimeoutInMicroseconds,
++		void *ProcedureArgument,
++		unsigned char *Finished);
++	unsigned long long (*SwitchBSP)(
++		struct EFI_MP_SERVICES_PROTOCOL *This,
++		unsigned long long ProcessorNumber,
++		unsigned char EnableOldBSP);
++	unsigned long long (*EnableDisableAP)(
++		struct EFI_MP_SERVICES_PROTOCOL *This,
++		unsigned long long ProcessorNumber,
++		unsigned char EnableAP,
++		unsigned int *HealthFlag);
++	unsigned long long (*WhoAmI)(
++		struct EFI_MP_SERVICES_PROTOCOL *This,
++		unsigned long long *ProcessorNumber);
++};
++
+ extern struct EFI_SYSTEM_TABLE *ST;
+ extern struct EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP;
+ extern struct EFI_SIMPLE_POINTER_PROTOCOL *SPP;
+@@ -500,6 +551,7 @@
+ extern struct EFI_DEVICE_PATH_TO_TEXT_PROTOCOL *DPTTP;
+ extern struct EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL *DPFTP;
+ extern struct EFI_DEVICE_PATH_UTILITIES_PROTOCOL *DPUP;
++extern struct EFI_MP_SERVICES_PROTOCOL *MSP;
+ extern struct EFI_GUID lip_guid;
+ extern struct EFI_GUID dpp_guid;
+ extern struct EFI_GUID fi_guid;
+diff -x '*.a' -x '*.o' -ru A00_boot_base/libuefi/efi.c 011_get_nproc_1/libuefi/efi.c
+--- A00_boot_base/libuefi/efi.c	2019-06-09 10:53:14.572147432 +0900
++++ 011_get_nproc_1/libuefi/efi.c	2019-06-09 18:41:20.372439479 +0900
+@@ -9,6 +9,7 @@
+ struct EFI_DEVICE_PATH_TO_TEXT_PROTOCOL *DPTTP;
+ struct EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL *DPFTP;
+ struct EFI_DEVICE_PATH_UTILITIES_PROTOCOL *DPUP;
++struct EFI_MP_SERVICES_PROTOCOL *MSP;
+ struct EFI_GUID lip_guid = {0x5b1b31a1, 0x9562, 0x11d2,
+ 			    {0x8e, 0x3f, 0x00, 0xa0,
+ 			     0xc9, 0x69, 0x72, 0x3b}};
+@@ -42,6 +43,9 @@
+ 	struct EFI_GUID dpup_guid = {0x379be4e, 0xd706, 0x437d,
+ 				     {0xb0, 0x37, 0xed, 0xb8,
+ 				      0x2f, 0xb7, 0x72, 0xa4}};
++	struct EFI_GUID msp_guid = {0x3fdda605, 0xa76e, 0x4f46,
++				    {0xad, 0x29, 0x12, 0xf4,
++				     0x53, 0x1b, 0x3d, 0x08}};
+ 
+ 	ST = SystemTable;
+ 	ST->BootServices->SetWatchdogTimer(0, 0, 0, NULL);
+@@ -52,6 +56,7 @@
+ 	ST->BootServices->LocateProtocol(&dpttp_guid, NULL, (void **)&DPTTP);
+ 	ST->BootServices->LocateProtocol(&dpftp_guid, NULL, (void **)&DPFTP);
+ 	ST->BootServices->LocateProtocol(&dpup_guid, NULL, (void **)&DPUP);
++	ST->BootServices->LocateProtocol(&msp_guid, NULL, (void **)&MSP);
+ }
+ 
+ void dump_efi_configuration_table(void)
+diff -x '*.a' -x '*.o' -ru A00_boot_base/poiboot.c 011_get_nproc_1/poiboot.c
+--- A00_boot_base/poiboot.c	2019-06-09 10:53:14.440147996 +0900
++++ 011_get_nproc_1/poiboot.c	2019-06-09 18:49:31.002497417 +0900
+@@ -67,6 +67,19 @@
+ 		kernel_arg3 = 0;
+ 	put_param(L"kernel_arg3", kernel_arg3);
+ 
++	/* プロセッサ数を表示してみる */
++	unsigned long long nproc, nproc_en;
++	status = MSP->GetNumberOfProcessors(MSP, &nproc, &nproc_en);
++	assert(status, L"MSP->GetNumberOfProcessors");
++
++	puts(L"nproc: ");
++	puth(nproc, 1);
++	puts(L"\r\n");
++	puts(L"nproc_en: ");
++	puth(nproc_en, 1);
++	puts(L"\r\n");
++	while (TRUE);
++
+ 	/* UEFIのブートローダー向け機能を終了させる */
+ 	exit_boot_services(ImageHandle);
+ 
