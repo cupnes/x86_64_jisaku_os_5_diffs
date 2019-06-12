@@ -1,0 +1,46 @@
+diff -ru 012_1_add_nproc_kern_param/poiboot.c 013_start_ap/poiboot.c
+--- 012_1_add_nproc_kern_param/poiboot.c	2019-06-12 22:28:40.723136765 +0900
++++ 013_start_ap/poiboot.c	2019-06-13 01:16:02.579322501 +0900
+@@ -29,6 +29,7 @@
+ 	unsigned long long fs_start);
+ void put_n_bytes(unsigned char *addr, unsigned int num);
+ void put_param(unsigned short *name, unsigned long long val);
++void ap_main(void *_st);
+ 
+ void efi_main(void *ImageHandle, struct EFI_SYSTEM_TABLE *SystemTable)
+ {
+@@ -72,6 +73,19 @@
+ 		kernel_arg3 = 0;
+ 	put_param(L"kernel_arg3", kernel_arg3);
+ 
++	/* 自身のプロセッサ番号を表示 */
++	unsigned long long pnum;
++	status = MSP->WhoAmI(MSP, &pnum);
++	assert(status, L"MSP->WhoAmI");
++	puth(pnum, 1);
++
++	/* 全てのAPをスタートする */
++	status = MSP->StartupAllAPs(MSP, ap_main, 0, NULL, 0, ST, NULL);
++	assert(status, L"MSP->StartupAllAPs");
++
++	/* BSP/APのプロセッサ番号を表示できたらそのまま止める */
++	while (TRUE);
++
+ 	/* UEFIのブートローダー向け機能を終了させる */
+ 	exit_boot_services(ImageHandle);
+ 
+@@ -208,3 +222,14 @@
+ 	puth(val, 16);
+ 	puts(L"\r\n");
+ }
++
++void ap_main(void *_st)
++{
++	efi_init(_st);
++
++	/* 自身のプロセッサ番号を表示 */
++	unsigned long long pnum;
++	unsigned long long status = MSP->WhoAmI(MSP, &pnum);
++	assert(status, L"MSP->WhoAmI");
++	puth(pnum, 1);
++}
