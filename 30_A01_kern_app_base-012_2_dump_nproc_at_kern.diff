@@ -1,0 +1,26 @@
+diff -ru A01_kern_app_base/main.c 012_2_dump_nproc_at_kern/main.c
+--- A01_kern_app_base/main.c	2019-06-09 11:02:34.749723269 +0900
++++ 012_2_dump_nproc_at_kern/main.c	2019-06-12 22:28:40.727136749 +0900
+@@ -17,6 +17,7 @@
+ struct __attribute__((packed)) platform_info {
+ 	struct framebuffer fb;
+ 	void *rsdp;
++	unsigned int nproc;
+ };
+ 
+ #define INIT_APP	"test"
+@@ -37,6 +38,14 @@
+ 	gdt_init();
+ 	intr_init();
+ 
++	/* ブートローダーから渡されたプロセッサ数を表示 */
++	puts("NPROC ");
++	puth(pi->nproc, 1);
++
++	/* haltして待つ */
++	while (1)
++		cpu_halt();
++
+ 	/* 周辺ICの初期化 */
+ 	pic_init();
+ 	hpet_init();

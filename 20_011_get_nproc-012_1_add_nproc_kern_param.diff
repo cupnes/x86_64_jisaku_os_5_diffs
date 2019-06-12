@@ -1,0 +1,42 @@
+diff -ru 011_get_nproc/poiboot.c 012_1_add_nproc_kern_param/poiboot.c
+--- 011_get_nproc/poiboot.c	2019-06-12 08:56:48.109586271 +0900
++++ 012_1_add_nproc_kern_param/poiboot.c	2019-06-12 22:28:40.723136765 +0900
+@@ -14,6 +14,7 @@
+ struct __attribute__((packed)) platform_info {
+ 	struct fb fb;
+ 	void *rsdp;
++	unsigned int nproc;
+ } pi;
+ 
+ void load_config(
+@@ -58,6 +59,10 @@
+ 	pi.fb.hr = fb.hr;
+ 	pi.fb.vr = fb.vr;
+ 	pi.rsdp = find_efi_acpi_table();
++	unsigned long long nproc, nproc_en;
++	status = MSP->GetNumberOfProcessors(MSP, &nproc, &nproc_en);
++	assert(status, L"MSP->GetNumberOfProcessors");
++	pi.nproc = nproc_en;
+ 	unsigned long long kernel_arg2 = (unsigned long long)&pi;
+ 	put_param(L"kernel_arg2", kernel_arg2);
+ 	unsigned long long kernel_arg3;
+@@ -67,19 +72,6 @@
+ 		kernel_arg3 = 0;
+ 	put_param(L"kernel_arg3", kernel_arg3);
+ 
+-	/* プロセッサ数を表示してみる */
+-	unsigned long long nproc, nproc_en;
+-	status = MSP->GetNumberOfProcessors(MSP, &nproc, &nproc_en);
+-	assert(status, L"MSP->GetNumberOfProcessors");
+-
+-	puts(L"nproc: ");
+-	puth(nproc, 1);
+-	puts(L"\r\n");
+-	puts(L"nproc_en: ");
+-	puth(nproc_en, 1);
+-	puts(L"\r\n");
+-	while (TRUE);
+-
+ 	/* UEFIのブートローダー向け機能を終了させる */
+ 	exit_boot_services(ImageHandle);
+ 
