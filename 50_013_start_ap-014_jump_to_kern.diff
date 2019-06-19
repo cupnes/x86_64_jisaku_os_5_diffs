@@ -1,0 +1,113 @@
+diff -ru 013_start_ap/poiboot.c 014_jump_to_kern/poiboot.c
+--- 013_start_ap/poiboot.c	2019-06-19 21:54:33.726446851 +0900
++++ 014_jump_to_kern/poiboot.c	2019-06-15 16:22:00.207349373 +0900
+@@ -11,12 +11,22 @@
+ 
+ #define MB		1048576	/* 1024 * 1024 */
+ 
++/* AP側のUEFI処理完了までの待ち時間(単位: マイクロ秒) */
++#define WAIT_FOR_AP_USECS	100000 /* 100ms */
++
+ struct __attribute__((packed)) platform_info {
+ 	struct fb fb;
+ 	void *rsdp;
++	void *fs_start;
+ 	unsigned int nproc;
+ } pi;
+ 
++struct ap_info {
++	unsigned long long kernel_start;
++	unsigned long long stack_space_start;
++	struct EFI_SYSTEM_TABLE *system_table;
++} ai;
++
+ void load_config(
+ 	struct EFI_FILE_PROTOCOL *root, unsigned short *conf_file_name,
+ 	unsigned long long *kernel_start, unsigned long long *stack_base,
+@@ -29,7 +39,7 @@
+ 	unsigned long long fs_start);
+ void put_n_bytes(unsigned char *addr, unsigned int num);
+ void put_param(unsigned short *name, unsigned long long val);
+-void ap_main(void *_st);
++void ap_main(void *_ai);
+ 
+ void efi_main(void *ImageHandle, struct EFI_SYSTEM_TABLE *SystemTable)
+ {
+@@ -60,31 +70,28 @@
+ 	pi.fb.hr = fb.hr;
+ 	pi.fb.vr = fb.vr;
+ 	pi.rsdp = find_efi_acpi_table();
++	if (has_fs == TRUE)
++		pi.fs_start = (void *)fs_start;
++	else
++		pi.fs_start = NULL;
+ 	unsigned long long nproc, nproc_en;
+ 	status = MSP->GetNumberOfProcessors(MSP, &nproc, &nproc_en);
+ 	assert(status, L"MSP->GetNumberOfProcessors");
+ 	pi.nproc = nproc_en;
+ 	unsigned long long kernel_arg2 = (unsigned long long)&pi;
+ 	put_param(L"kernel_arg2", kernel_arg2);
+-	unsigned long long kernel_arg3;
+-	if (has_fs == TRUE)
+-		kernel_arg3 = fs_start;
+-	else
+-		kernel_arg3 = 0;
+-	put_param(L"kernel_arg3", kernel_arg3);
+-
+-	/* BSP自身のプロセッサ番号を表示 */
+ 	unsigned long long pnum;
+ 	status = MSP->WhoAmI(MSP, &pnum);
+ 	assert(status, L"MSP->WhoAmI");
+-	puth(pnum, 1);
++	unsigned long long kernel_arg3 = pnum;
++	put_param(L"kernel_arg3", kernel_arg3);
+ 
+ 	/* 全てのAPをスタートする */
+-	status = MSP->StartupAllAPs(MSP, ap_main, 0, NULL, 0, ST, NULL);
+-	assert(status, L"MSP->StartupAllAPs");
+-
+-	/* BSP/APのプロセッサ番号を表示できたらそのまま止める */
+-	while (TRUE);
++	ai.kernel_start = kernel_start;
++	ai.stack_space_start = stack_base;
++	ai.system_table = ST;
++	status = MSP->StartupAllAPs(
++		MSP, ap_main, 0, NULL, WAIT_FOR_AP_USECS, &ai, NULL);
+ 
+ 	/* UEFIのブートローダー向け機能を終了させる */
+ 	exit_boot_services(ImageHandle);
+@@ -223,13 +230,30 @@
+ 	puts(L"\r\n");
+ }
+ 
+-void ap_main(void *_st)
++void ap_main(void *_ai)
+ {
+-	efi_init(_st);
++	struct ap_info *ai = _ai;
++	efi_init(ai->system_table);
+ 
+-	/* 自身のプロセッサ番号を表示 */
+ 	unsigned long long pnum;
+ 	unsigned long long status = MSP->WhoAmI(MSP, &pnum);
+ 	assert(status, L"MSP->WhoAmI");
+-	puth(pnum, 1);
++
++	unsigned long long stack_base = ai->stack_space_start + (pnum * MB);
++
++	unsigned long long kernel_arg1 = (unsigned long long)ST;
++	unsigned long long kernel_arg2 = 0;
++	unsigned long long kernel_arg3 = pnum;
++
++	/* カーネルへ渡す引数設定(引数に使うレジスタへセットする) */
++	unsigned long long _sb = stack_base, _ks = ai->kernel_start;
++	__asm__ ("	mov	%0, %%rdx\n"
++		 "	mov	%1, %%rsi\n"
++		 "	mov	%2, %%rdi\n"
++		 "	mov	%3, %%rsp\n"
++		 "	jmp	*%4\n"
++		 ::"m"(kernel_arg3), "m"(kernel_arg2), "m"(kernel_arg1),
++		  "m"(_sb), "m"(_ks));
++
++	while (TRUE);
+ }
