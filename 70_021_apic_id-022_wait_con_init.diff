@@ -1,0 +1,47 @@
+diff -ru 021_apic_id/main.c 022_wait_con_init/main.c
+--- 021_apic_id/main.c	2019-06-23 21:00:40.062171779 +0900
++++ 022_wait_con_init/main.c	2019-06-23 21:00:40.062171779 +0900
+@@ -23,8 +23,8 @@
+ 
+ #define INIT_APP	"test"
+ 
+-/* コンソールへアクセス可能なCPUを管理(同時アクセスを簡易的に防ぐ) */
+-unsigned char con_access_perm = 0;
++/* コンソールの初期化が完了したか否か */
++unsigned char is_con_inited = 0;
+ 
+ void start_kernel(void *_t __attribute__((unused)), struct platform_info *pi,
+ 		  void *_fs_start)
+@@ -33,15 +33,12 @@
+ 
+ 	/* APの場合、初期化処理をスキップ */
+ 	if (pnum) {
+-		/* 自分の番まで待つ */
+-		while (con_access_perm != pnum);
++		/* コンソールの初期化が完了するまで待つ */
++		while (!is_con_inited);
+ 
+ 		/* AP自身のプロセッサ番号を表示 */
+ 		puth(pnum, 1);
+ 
+-		/* 次の番へ回す */
+-		con_access_perm++;
+-
+ 		/* haltして待つ */
+ 		while (1)
+ 			cpu_halt();
+@@ -52,13 +49,11 @@
+ 	set_fg(255, 255, 255);
+ 	set_bg(0, 70, 250);
+ 	clear_screen();
++	is_con_inited = 1;
+ 
+ 	/* BSP自身のプロセッサ番号を表示 */
+ 	puth(pnum, 1);
+ 
+-	/* 次の番へ回す */
+-	con_access_perm++;
+-
+ 	/* haltして待つ */
+ 	while (1)
+ 		cpu_halt();

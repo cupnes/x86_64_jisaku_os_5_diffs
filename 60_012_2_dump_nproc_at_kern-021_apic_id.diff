@@ -1,19 +1,36 @@
-diff -ru archive/012_2_dump_nproc_at_kern/main.c 021_apic_id/main.c
---- archive/012_2_dump_nproc_at_kern/main.c	2019-06-22 12:46:15.939226583 +0900
-+++ 021_apic_id/main.c	2019-06-22 20:01:11.654469372 +0900
-@@ -17,20 +17,52 @@
- struct __attribute__((packed)) platform_info {
- 	struct framebuffer fb;
- 	void *rsdp;
--	unsigned int nproc;
- };
+diff -ru 012_2_dump_nproc_at_kern/Makefile 021_apic_id/Makefile
+--- 012_2_dump_nproc_at_kern/Makefile	2019-06-23 21:00:40.014172174 +0900
++++ 021_apic_id/Makefile	2019-06-23 21:00:40.046171911 +0900
+@@ -2,8 +2,8 @@
+ CFLAGS = -Wall -Wextra -nostdinc -nostdlib -fno-builtin -fno-common -Iinclude
+ LDFLAGS = -Map kernel.map -s -x -T kernel.ld
+ OBJS = main.o syscall.o proc.o iv.o fbcon.o fb.o font.o kbc.o x86.o	\
+-	intr.o pic.o sched.o hpet.o acpi.o nic.o pci.o handler.o fs.o	\
+-	common.o
++	intr.o pic.o apic.o sched.o hpet.o acpi.o nic.o pci.o		\
++	handler.o fs.o common.o
+ 
+ $(TARGET): $(OBJS)
+ 	ld $(LDFLAGS) -o $@ $+
+021_apic_id のみに存在: apic.c
+021_apic_id/include のみに存在: apic.h
+diff -ru 012_2_dump_nproc_at_kern/main.c 021_apic_id/main.c
+--- 012_2_dump_nproc_at_kern/main.c	2019-06-23 21:00:40.030172041 +0900
++++ 021_apic_id/main.c	2019-06-23 21:00:40.062171779 +0900
+@@ -1,6 +1,7 @@
+ #include <x86.h>
+ #include <intr.h>
+ #include <pic.h>
++#include <apic.h>
+ #include <acpi.h>
+ #include <fb.h>
+ #include <kbc.h>
+@@ -22,15 +23,46 @@
  
  #define INIT_APP	"test"
  
 +/* コンソールへアクセス可能なCPUを管理(同時アクセスを簡易的に防ぐ) */
 +unsigned char con_access_perm = 0;
-+
-+unsigned char get_pnum(void);
 +
  void start_kernel(void *_t __attribute__((unused)), struct platform_info *pi,
  		  void *_fs_start)
@@ -70,49 +87,3 @@ diff -ru archive/012_2_dump_nproc_at_kern/main.c 021_apic_id/main.c
  	/* 周辺ICの初期化 */
  	pic_init();
  	hpet_init();
-@@ -74,3 +98,14 @@
- 	while (1)
- 		cpu_halt();
- }
-+
-+unsigned char get_pnum(void)
-+{
-+	unsigned int pnum;
-+
-+	asm volatile ("movl 0xfee00020, %[pnum]\n" /* Local APIC ID Register */
-+		      "shrl $0x18, %[pnum]\n"
-+		      : [pnum]"=r"(pnum));
-+
-+	return pnum;
-+}
-diff -ru archive/012_2_dump_nproc_at_kern/x86.c 021_apic_id/x86.c
---- archive/012_2_dump_nproc_at_kern/x86.c	2019-06-22 12:46:15.939226583 +0900
-+++ 021_apic_id/x86.c	2019-06-22 20:01:11.654469372 +0900
-@@ -54,18 +54,19 @@
- 	asm volatile ("lgdt gdtr");
- 
- 	/* DS・SSの設定 */
--	asm volatile ("movw $2*8, %ax\n"
--		      "movw %ax, %ds\n"
--		      "movw %ax, %ss\n");
-+	asm volatile ("movw $2*8, %%ax\n"
-+		      "movw %%ax, %%ds\n"
-+		      "movw %%ax, %%ss\n"
-+		      ::: "%ax");
- 
- 	/* CSの設定 */
- 	unsigned short selector = SS_KERNEL_CODE;
- 	unsigned long long dummy;
--	asm volatile ("pushq %[selector];"
--		      "leaq ret_label(%%rip), %[dummy];"
--		      "pushq %[dummy];"
--		      "lretq;"
--		      "ret_label:"
-+	asm volatile ("pushq %[selector]\n"
-+		      "leaq ret_label(%%rip), %[dummy]\n"
-+		      "pushq %[dummy]\n"
-+		      "lretq\n"
-+		      "ret_label:\n"
- 		      : [dummy]"=r"(dummy)
- 		      : [selector]"m"(selector));
- }

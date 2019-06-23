@@ -1,6 +1,6 @@
 diff -ru 013_start_ap/poiboot.c 014_jump_to_kern/poiboot.c
---- 013_start_ap/poiboot.c	2019-06-20 21:55:26.855709840 +0900
-+++ 014_jump_to_kern/poiboot.c	2019-06-20 21:55:26.855709840 +0900
+--- 013_start_ap/poiboot.c	2019-06-23 21:00:40.030172041 +0900
++++ 014_jump_to_kern/poiboot.c	2019-06-23 21:00:40.030172041 +0900
 @@ -11,12 +11,21 @@
  
  #define MB		1048576	/* 1024 * 1024 */

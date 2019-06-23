@@ -1,6 +1,6 @@
 diff -ru A01_kern_app_base/main.c 012_2_dump_nproc_at_kern/main.c
 --- A01_kern_app_base/main.c	2019-06-09 11:02:34.749723269 +0900
-+++ 012_2_dump_nproc_at_kern/main.c	2019-06-12 22:28:40.727136749 +0900
++++ 012_2_dump_nproc_at_kern/main.c	2019-06-23 21:00:40.030172041 +0900
 @@ -17,6 +17,7 @@
  struct __attribute__((packed)) platform_info {
  	struct framebuffer fb;

@@ -1,6 +1,6 @@
 diff -ru 012_1_add_nproc_kern_param/poiboot.c 013_start_ap/poiboot.c
---- 012_1_add_nproc_kern_param/poiboot.c	2019-06-12 22:28:40.723136765 +0900
-+++ 013_start_ap/poiboot.c	2019-06-13 01:16:02.579322501 +0900
+--- 012_1_add_nproc_kern_param/poiboot.c	2019-06-23 21:00:40.014172174 +0900
++++ 013_start_ap/poiboot.c	2019-06-23 21:00:40.030172041 +0900
 @@ -29,6 +29,7 @@
  	unsigned long long fs_start);
  void put_n_bytes(unsigned char *addr, unsigned int num);
@@ -13,7 +13,7 @@ diff -ru 012_1_add_nproc_kern_param/poiboot.c 013_start_ap/poiboot.c
  		kernel_arg3 = 0;
  	put_param(L"kernel_arg3", kernel_arg3);
  
-+	/* 自身のプロセッサ番号を表示 */
++	/* BSP自身のプロセッサ番号を表示 */
 +	unsigned long long pnum;
 +	status = MSP->WhoAmI(MSP, &pnum);
 +	assert(status, L"MSP->WhoAmI");
