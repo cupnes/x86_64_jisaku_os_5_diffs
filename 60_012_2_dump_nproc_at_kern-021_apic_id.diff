@@ -1,6 +1,6 @@
-diff -ru 012_2_dump_nproc_at_kern/Makefile 021_apic_id/Makefile
+diff -ru 012_2_dump_nproc_at_kern/Makefile 021_lapic_id/Makefile
 --- 012_2_dump_nproc_at_kern/Makefile	2019-06-23 21:00:40.014172174 +0900
-+++ 021_apic_id/Makefile	2019-06-23 21:00:40.046171911 +0900
++++ 021_lapic_id/Makefile	2019-06-25 22:52:41.241281660 +0900
 @@ -2,8 +2,8 @@
  CFLAGS = -Wall -Wextra -nostdinc -nostdlib -fno-builtin -fno-common -Iinclude
  LDFLAGS = -Map kernel.map -s -x -T kernel.ld
@@ -12,11 +12,11 @@ diff -ru 012_2_dump_nproc_at_kern/Makefile 021_apic_id/Makefile
  
  $(TARGET): $(OBJS)
  	ld $(LDFLAGS) -o $@ $+
-021_apic_id のみに存在: apic.c
-021_apic_id/include のみに存在: apic.h
-diff -ru 012_2_dump_nproc_at_kern/main.c 021_apic_id/main.c
+021_lapic_id のみに存在: apic.c
+021_lapic_id/include のみに存在: apic.h
+diff -ru 012_2_dump_nproc_at_kern/main.c 021_lapic_id/main.c
 --- 012_2_dump_nproc_at_kern/main.c	2019-06-23 21:00:40.030172041 +0900
-+++ 021_apic_id/main.c	2019-06-23 21:00:40.062171779 +0900
++++ 021_lapic_id/main.c	2019-06-25 22:52:41.245281648 +0900
 @@ -1,6 +1,7 @@
  #include <x86.h>
  #include <intr.h>

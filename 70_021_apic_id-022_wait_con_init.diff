@@ -1,5 +1,5 @@
-diff -ru 021_apic_id/main.c 022_wait_con_init/main.c
---- 021_apic_id/main.c	2019-06-23 21:00:40.062171779 +0900
+diff -ru 021_lapic_id/main.c 022_wait_con_init/main.c
+--- 021_lapic_id/main.c	2019-06-25 22:52:41.245281648 +0900
 +++ 022_wait_con_init/main.c	2019-06-23 21:00:40.062171779 +0900
 @@ -23,8 +23,8 @@
  
